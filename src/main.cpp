@@ -12,6 +12,7 @@ short count=0;
 void(* resetFunc) (void) =0;
 int SerialEvent();
 int SerialEvent2(void);
+int network(void);
 LiquidCrystal_I2C lcd(0x27, 16, 2 );  // Change the LCD address if needed
 
 const byte ROWS = 5; // Number of rows in the button matrix
@@ -21,6 +22,7 @@ int checker=0;
 char lecturer_id[lenght+1];
 char exitl;
 char key;
+int  net =0;
 
 int lecturerVerified,reader,studentVerified=0;
 // Define the keymap
@@ -43,24 +45,50 @@ void setup() {
   Serial.begin(115200);
   espSerial.begin(115200);
   pinMode(2,OUTPUT);
+  pinMode(A0,OUTPUT);
+  pinMode(A1,OUTPUT);
+  pinMode(A2,OUTPUT);
+  analogWrite(A0,((255/3.3)*3.3));
+  analogWrite(A1,((255/3.3)*3.3));
+  analogWrite(A2,((255/3.3)*3.3));
   delay(2000);
   lcd.init();
   lcd.clear();
   lcd.backlight();
   lcd.blink_on();
   byte i =13;
+  byte ti=11;
+  lcd.setCursor(0,0);
+  lcd.print("Connecting."); 
+  lcd.blink_off();
+  while(!network())
+  {
+    lcd.setCursor(ti,0);
+    lcd.print(".");
+    ti++;
+    delay(250);
+    if(ti>=17)
+    {
+      ti=10;
+      lcd.setCursor(0,0);
+      lcd.print("Connecting.     "); 
+      delay(10);
+    }
+  } 
   lcd.setCursor(0, 0);
   lcd.print("Loading wait.");
-  while(i<16)
+  while(i<15)
   {
   lcd.setCursor(i, 0);
   lcd.print('.');
   i++;
-  delay(1000);
+  delay(500);
   }
 }
 
 void loop() {
+ 
+ 
 start:
   //lcd.clear();
   lcd.setCursor(0,0);
@@ -140,23 +168,33 @@ start:
       Serial.println(lecturerVerified);
       if(lecturerVerified==1)
       {
+        analogWrite(A2,((255/3.3)*0));
         reader = 1;
-      }else{
+      }
+      if(lecturerVerified==2){
+        lcd.setCursor(0,0);
+        analogWrite(A0,((255/3.3)*0));
+        lcd.print(" Network error! ");
+        delay(2000);
+        analogWrite(A0,((255/3.3)*3.2));
         goto start;
       }
+      if(lecturerVerified==7){
+        lcd.setCursor(0,0);
+        analogWrite(A0,((255/3.3)*0));
+        lcd.print("Connection error");
+        delay(2000);
+        analogWrite(A0,((255/3.3)*3.2));
+        goto start;
+      }
+      lcd.setCursor(0,0);
+      lcd.print("    Scan tag    ");
      }
      
      while(reader==1)
      {
-      lcd.setCursor(0,0);
-      lcd.print("Scan tag");
       lcd.setCursor(0,1);
       key = keypad.getKey();
-     
-    
-      
-      
-      
       if(key)
       {
         exitl=key;
@@ -173,12 +211,45 @@ start:
       Serial.println(studentVerified);
       if(studentVerified==4)
       {
+        lcd.setCursor(0,0);
+        lcd.print("    Scan tag    ");
         digitalWrite(2,HIGH);
+        analogWrite(A2,((255/3.3)*3.3));
+        analogWrite(A1,((255/3.3)*0));
         delay(250);
         digitalWrite(2,LOW);
+        analogWrite(A1,((255/3.3)*3.3));
+        analogWrite(A2,((255/3.3)*0));
+        delay(250);
       }
+      else if(studentVerified==5)
+      {
+        lcd.setCursor(0,0);
+        lcd.print("  Record taken  ");
+        analogWrite(A2,((255/3.3)*0));
+        delay(1000);
+        analogWrite(A2,((255/3.3)*3.3));
+        
+      }
+       if(studentVerified==9 ){
+      lcd.setCursor(0,0);
+      lcd.print("     Rescan     ");
       studentVerified=0;
      }
+   
+    if( studentVerified == 6)
+      {
+        lcd.setCursor(0,0);
+        lcd.print("Network Err Rsc");
+        studentVerified=0;
+     }
+     if( studentVerified == 8)
+      {
+        lcd.setCursor(0,0);
+        lcd.print("   Card read   ");
+        studentVerified=0;
+     }
+  }
    
 }
 
@@ -206,7 +277,10 @@ start:
 
 int SerialEvent(void)
 {
-  while(!Serial.available());
+  while(!Serial.available())
+  {
+    //return 0;
+  };
   int  no = (int)Serial.read();
   
   Serial.print("error");
@@ -214,7 +288,7 @@ int SerialEvent(void)
  
     if(no<=0){
        //Serial.flush();
-        return no;
+        return 0;
     }
    
     return no;
@@ -230,4 +304,23 @@ int SerialEvent2(void)
     }
   }
   return 0;
+ }
+
+int network(void)
+{
+  if(!Serial.available())
+  {
+    return 0;
+  }
+  int  no = (int)Serial.read();
+  
+  Serial.print("error");
+  Serial.println(no);
+ 
+    if(no<=0){
+       //Serial.flush();
+        return 0;
+    }
+   
+    return no;
  }
